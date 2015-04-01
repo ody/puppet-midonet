@@ -21,6 +21,8 @@ class midonet::agent(
 
     'RedHat': {
 
+      require midonet::repo
+
       package { 'midolman':
         ensure => present,
       }

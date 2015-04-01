@@ -12,11 +12,15 @@
 
 class midonet::api (
 
-  $api_ip            = $::midonet::params::api_ip
-  $keystone_host     = $::midonet::params::keystone_host
-  $keystone_port     = $::midonet::params::keystone_port
-  $keystone_token    = $::midonet::params::keystone_token
-  $vtep_enabled      = $::midonet::params::vtep_enabled
+  $keystone_host        = $::midonet::params::keystone_host
+  $keystone_port        = $::midonet::params::keystone_port
+  $keystone_token       = $::midonet::params::keystone_token
+  $midonet_api_ip       = $::midonet::params::midonet_api_ip
+  $midonet_xml_path     = $::midonet::params::midonet_xml_path
+  $midonet_vtep_enabled = $::midonet::params::vtep_enabled
+  $tomcat_manage        = $::midonet::params::tomcat_manage
+  $tomcat_xml_path      = $::midonet::params::tomcat_config_path
+
   $zookeeper_servers = $::midonet::params::zookeeper_servers
 
 ) inherits midonet::params {
@@ -31,39 +35,50 @@ class midonet::api (
 
     'RedHat': {
 
-      class { 'tomcat':
-        install_from_source => false,
-      }
+      require midonet::repo
 
-      tomcat::instance { 'default':
-        package_name => 'tomcat',
-      }
+      if $tomcat_manage == true {
 
-      tomcat::service { 'default':
-        use_jsvc     => false,
-        use_init     => true,
-        service_name => 'tomcat',
+        Package {
+          require => Tomcat::Instance['default'],
+        }
+
+        File {
+          notify => Service['tomcat'],
+        }
+
+        class { 'tomcat':
+          install_from_source => false,
+        }
+
+        tomcat::instance { 'default':
+          package_name => 'tomcat',
+        }
+
+        tomcat::service { 'default':
+          use_jsvc     => false,
+          use_init     => true,
+          service_name => 'tomcat',
+        }
+
       }
 
       package { 'midonet-api':
         ensure  => present,
-        require => Tomcat::Instance['default']
       }
 
-      file { '/etc/tomcat/Catalina/localhost/midonet-api.xml':
+      file { "${tomcat_xml_path}/midonet-api.xml":
         ensure  => present,
         group   => 'root',
         owner   => 'root',
         source  => 'puppet:///modules/midonet/midonet-api/midonet-api.xml',
         require => Package['midonet-api'],
-        notify  => Service['tomcat'],
       }
 
-      file { '/usr/share/midonet-api/WEB-INF/web.xml':
+      file { "${midonet_xml_path}/web.xml":
         ensure  => present,
         content => template('midonet/midonet-api/web.xml.erb'),
         require => Package['midonet-api'],
-        notify  => Service['tomcat'],
       }
 
     }

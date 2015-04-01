@@ -19,6 +19,8 @@ class midonet::cli {
 
     'RedHat': {
 
+      require midonet::repo
+
       package { 'python-midonetclient':
         ensure => present,
       }
