@@ -1,66 +1,80 @@
+# Define midonet::repo
+#
+# Actions:
+#   This module installs the Midonet repositories
+
 class midonet::repo(
 
-  $repo_midonet_url              = $::midonet::params::repo_midonet_url,
-  $repo_midonet_version_number   = $::midonet::params::repo_midonet_version_number,
-  $repo_midonet_version_friendly = $::midoent::params::repo_midonet_version_friendly,
+  $openstack_version,
+  $os_maj_release = $::midonet::params::os_maj_release,
+  $repo_baseurl   = $::midonet::params::repo_baseurl
 
 ) inherits midonet::params {
 
-  case $::osfamily {
-    'Debian' : { 
+  $openstack_version_list = [
+    'icehouse',
+    'juno',
+    'kilo'
+  ]
 
-      notify { 'Debian and its derivatives are currently not supported.' : }
+  validate_re($openstack_version, $openstack_version_list)
+
+  if $openstack_version == 'icehouse' {
+    $midonet_version = '2014.11'
+  } elsif $openstack_version == 'juno' {
+    $midonet_version = '2015.1'
+  } else $openstack_version == 'kilo' {
+    $midonet_version = '2015.2'
+  }
+
+  case $::osfamily {
+
+    default: {
+
+      notify { 'Non-enterprise Linux derivatives are currently not supported.':}
 
     }
 
     'RedHat' : {
 
-      if $repo_manage_epel {
-        include epel
-      }
-
-      file { '/etc/pki/rpm-gpg/GPG-MIDOKURA' :
+      file { '/etc/pki/rpm-gpg/RPM-GPG-KEY-MIDOKURA':
         ensure => present,
         owner  => 'root',
         group  => 'root',
         mode   => '0644',
-        source => 'puppet:///modules/midonet/GPG-MIDOKURA',
-        notify => Exec['import-key-midokura']
+        source => 'puppet:///modules/midonet/RPM-GPG-KEY-MIDOKURA',
+        before => Midonet::Rpm_gpg_key['RPM-GPG-KEY-MIDOKURA'],
       }
 
-      exec { 'import-key-midokura' :
-        command   => 'rpm --import /etc/pki/rpm-gpg/GPG-MIDOKURA',
-        logoutput => 'on_failure',
-        path      => '/bin:/usr/bin:/sbin:/usr/sbin',
+      midonet::rpm_gpg_key { 'RPM-GPG-KEY-MIDOKURA':
+        path   => '/etc/pki/rpm-gpg/RPM-GPG-KEY-MIDOKURA',
+        before => Yumrepo['midonet','midonet-openstack','midonet-misc'],
       }
 
       Yumrepo {
         enabled  => 1,
         gpgcheck => 1,
+        gpgkey   => 'file:///etc/pki/rpm-gpg/RPM-GPG-KEY-MIDOKURA'
         notify   => Exec['update-repos'],
       }
 
       yumrepo { 'midonet':
-        baseurl  => "${repo_midonet_url}/midonet/${repo_midonet_version_number}/RHEL/${::operatingsystemmajrelease}/stable",
-        descr    => 'Midonet Repository',
-        gpgkey   => 'file:///etc/pki/rpm-gpg/GPG-MIDOKURA',
-        require  => File['/etc/pki/rpm-gpg/GPG-MIDOKURA'],
+        baseurl => "${repo_baseurl}/midonet/${midonet_version}/RHEL/${os_maj_release}/stable/",
+        descr   => 'Midonet Repository',
+        gpgkey  => 'file:///etc/pki/rpm-gpg/GPG-MIDOKURA',
       }
 
       yumrepo { 'midonet-openstack':
-        baseurl  => "${repo_midonet_url}/openstack-${repo_midonet_version_friendly}/RHEL/${::operatingsystemmajrelease}/stable",
-        descr    => 'Midonet OpenStacek Plugin Repository',
-        gpgkey   => 'file:///etc/pki/rpm-gpg/GPG-MIDOKURA',
-        require  => File['/etc/pki/rpm-gpg/GPG-MIDOKURA'],
+        baseurl => "${repo_baseurl}/openstack-${openstack_version}/RHEL/${os_maj_release}/stable/",
+        descr   => 'Midonet OpenStacek Plugin Repository',
       }
 
       yumrepo { 'midonet-misc':
-        baseurl  => "${repo_midonet_url}/misc/RHEL/${::operatingsystemmajrelease}",
-        descr    => 'Midonet Misc Repository',
-        gpgkey   => 'file:///etc/pki/rpm-gpg/GPG-MIDOKURA',
+        baseurl => "${repo_baseurl}/misc/RHEL/${os_maj_release}/misc/",
+        descr   => 'Midonet Misc Repository',
       }
 
-      exec { 'update-repos' :
+      exec { 'update-repos':
         command   => 'yum clean all && yum makecache',
         logoutput => 'on_failure',
         path      => '/bin:/usr/bin:/sbin:/usr/sbin',
