@@ -11,61 +11,39 @@
 #   https://forge.puppetlabs.com/puppetlabs/java .
 
 class midonet::api (
-
-  $keystone_host        = $::midonet::params::keystone_host
-  $keystone_port        = $::midonet::params::keystone_port
-  $keystone_token       = $::midonet::params::keystone_token
-  $midonet_api_ip       = $::midonet::params::midonet_api_ip
-  $midonet_xml_path     = $::midonet::params::midonet_xml_path
-  $midonet_vtep_enabled = $::midonet::params::vtep_enabled
-  $tomcat_manage        = $::midonet::params::tomcat_manage
-  $tomcat_xml_path      = $::midonet::params::tomcat_config_path
-
-  $zookeeper_servers = $::midonet::params::zookeeper_servers
-
+  $keystone_host        = $::midonet::params::keystone_host,
+  $keystone_port        = $::midonet::params::keystone_port,
+  $keystone_token       = $::midonet::params::keystone_token,
+  $midonet_api_ip       = $::midonet::params::midonet_api_ip,
+  $midonet_xml_path     = $::midonet::params::midonet_xml_path,
+  $midonet_vtep_enabled = $::midonet::params::vtep_enabled,
+  $tomcat_manage        = $::midonet::params::tomcat_manage,
+  $tomcat_xml_path      = $::midonet::params::tomcat_config_path,
+  $zookeeper_servers    = $::midonet::params::zookeeper_servers,
 ) inherits midonet::params {
-
   case $::osfamily {
-
-    default: {
-
-      notify { 'Non-enterprise Linux derivatives are currently not supported.':}
-
-    }
-
     'RedHat': {
 
       require midonet::repo
 
       if $tomcat_manage == true {
 
-        Package {
-          require => Tomcat::Instance['default'],
-        }
+        Package { require => Tomcat::Instance['default'], }
 
-        File {
-          notify => Service['tomcat'],
-        }
+        File { notify => Service['tomcat'], }
 
-        class { 'tomcat':
-          install_from_source => false,
-        }
+        class { 'tomcat': install_from_source => false, }
 
-        tomcat::instance { 'default':
-          package_name => 'tomcat',
-        }
+        tomcat::instance { 'default': package_name => 'tomcat', }
 
         tomcat::service { 'default':
           use_jsvc     => false,
           use_init     => true,
           service_name => 'tomcat',
         }
-
       }
 
-      package { 'midonet-api':
-        ensure  => present,
-      }
+      package { 'midonet-api': ensure  => present, }
 
       file { "${tomcat_xml_path}/midonet-api.xml":
         ensure  => present,
@@ -80,7 +58,9 @@ class midonet::api (
         content => template('midonet/midonet-api/web.xml.erb'),
         require => Package['midonet-api'],
       }
-
+    }
+    default: {
+      fail('Non-enterprise Linux derivatives are currently not supported.')
     }
   }
 }

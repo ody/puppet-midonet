@@ -25,5 +25,4 @@ class midonet::params {
     $os_versions = split($::operatingsystemrelease, '[.]')
     $os_maj_release = $os_versions[0]
   }
-
 }

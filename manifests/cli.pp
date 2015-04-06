@@ -10,13 +10,6 @@
 class midonet::cli {
 
   case $::osfamily {
-
-    default: {
-
-      notify { 'Non-enterprise Linux derivatives are currently not supported.':}
-
-    }
-
     'RedHat': {
 
       require midonet::repo
@@ -24,7 +17,9 @@ class midonet::cli {
       package { 'python-midonetclient':
         ensure => present,
       }
-
+    }
+    default: {
+      fail('Non-enterprise Linux derivatives are currently not supported.')
     }
   }
 }

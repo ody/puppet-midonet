@@ -4,11 +4,9 @@
 #   This module installs the Midonet repositories
 
 class midonet::repo(
-
   $openstack_version,
   $os_maj_release = $::midonet::params::os_maj_release,
-  $repo_baseurl   = $::midonet::params::repo_baseurl
-
+  $repo_baseurl   = $::midonet::params::repo_baseurl,
 ) inherits midonet::params {
 
   $openstack_version_list = [
@@ -19,22 +17,13 @@ class midonet::repo(
 
   validate_re($openstack_version, $openstack_version_list)
 
-  if $openstack_version == 'icehouse' {
-    $midonet_version = '2014.11'
-  } elsif $openstack_version == 'juno' {
-    $midonet_version = '2015.1'
-  } else $openstack_version == 'kilo' {
-    $midonet_version = '2015.2'
+  $midonet_verion = {
+    'icehouse' => '2014.11',
+    'juno'     => '2015.1',
+    'kilo'     => '2015.2',
   }
 
   case $::osfamily {
-
-    default: {
-
-      notify { 'Non-enterprise Linux derivatives are currently not supported.':}
-
-    }
-
     'RedHat' : {
 
       file { '/etc/pki/rpm-gpg/RPM-GPG-KEY-MIDOKURA':
@@ -59,7 +48,7 @@ class midonet::repo(
       }
 
       yumrepo { 'midonet':
-        baseurl => "${repo_baseurl}/midonet/${midonet_version}/RHEL/${os_maj_release}/stable/",
+        baseurl => "${repo_baseurl}/midonet/${midonet_version[$openstack_version]}/RHEL/${os_maj_release}/stable/",
         descr   => 'Midonet Repository',
         gpgkey  => 'file:///etc/pki/rpm-gpg/GPG-MIDOKURA',
       }
@@ -79,7 +68,9 @@ class midonet::repo(
         logoutput => 'on_failure',
         path      => '/bin:/usr/bin:/sbin:/usr/sbin',
       }
-
+    }
+    default: {
+      fail('Non-enterprise Linux derivatives are currently not supported.')
     }
   }
 }
